@@ -23,12 +23,18 @@ AI-powered litigation document analysis and response generation tool built with 
 | Frontend | HTML, CSS, vanilla JavaScript |
 | Testing | pytest |
 
-## Quick Start
+## Deploy to Vercel
+
+1. Import this repo on [vercel.com/new](https://vercel.com/new)
+2. Add the environment variable `OPENAI_API_KEY` in your Vercel project settings
+3. Deploy — Vercel auto-detects the Python serverless function
+
+## Local Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/litigation-ai-tool.git
-cd litigation-ai-tool
+git clone https://github.com/HediAmineChaabani77/AI-powered-litigation-document-automation-tool.git
+cd AI-powered-litigation-document-automation-tool
 
 # Create virtual environment
 python -m venv .venv
@@ -61,7 +67,8 @@ uvicorn app.main:app --reload
 ## Project Structure
 
 ```
-litigation-ai-tool/
+├── api/
+│   └── index.py               # Vercel serverless entry point
 ├── app/
 │   ├── api/
 │   │   └── routes.py          # REST API endpoints
@@ -80,6 +87,7 @@ litigation-ai-tool/
 │   ├── test_api.py
 │   ├── test_document_parser.py
 │   └── test_pdf_extractor.py
+├── vercel.json                # Vercel deployment config
 ├── requirements.txt
 ├── .env.example
 └── README.md

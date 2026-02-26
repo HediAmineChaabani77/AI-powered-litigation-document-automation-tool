@@ -2,8 +2,12 @@
 
 from pathlib import Path
 
-import fitz  # PyMuPDF
 import pdfplumber
+
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
 
 
 def extract_with_pdfplumber(pdf_path: str) -> list[dict]:
@@ -25,6 +29,8 @@ def extract_with_pymupdf(pdf_path: str) -> list[dict]:
 
     Returns a list of dicts, one per page, with keys 'page' and 'text'.
     """
+    if fitz is None:
+        raise ImportError("PyMuPDF is not installed. Use 'pdfplumber' method instead.")
     pages = []
     doc = fitz.open(pdf_path)
     for i, page in enumerate(doc, start=1):
