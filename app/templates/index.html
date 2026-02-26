@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Litigation AI Tool</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Litigation AI Tool</h1>
+            <p>AI-powered document analysis and response generation</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="statusMsg" class="status-msg"></div>
+
+        <!-- Upload Section -->
+        <div class="card">
+            <h2>Upload Document</h2>
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="fileInput" accept=".pdf">
+                <p><strong>Click or drag a PDF</strong> to upload a litigation document</p>
+                <p style="font-size:0.8rem; margin-top:0.5rem;">Supports interrogatories, RFPs, and RFAs</p>
+            </div>
+            <div class="loading" id="uploadLoading">
+                <div class="spinner"></div>
+                <p>Extracting and analyzing document...</p>
+            </div>
+        </div>
+
+        <!-- Single Request Analysis -->
+        <div class="card">
+            <h2>Analyze a Single Request</h2>
+            <textarea id="singleRequest" placeholder="Paste a litigation request here..."></textarea>
+            <textarea id="singleContext" placeholder="Optional: additional context or definitions..." style="min-height:50px;"></textarea>
+            <button class="btn btn-primary" id="analyzeBtn">Analyze Request</button>
+            <div class="loading" id="singleLoading">
+                <div class="spinner"></div>
+                <p>Generating response...</p>
+            </div>
+            <div id="singleResult"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results">
+            <div class="card">
+                <h2>Document Analysis</h2>
+                <div style="margin-bottom:1rem;">
+                    <span class="badge badge-type" id="docType"></span>
+                    <span class="badge badge-count" id="reqCount"></span>
+                </div>
+                <div class="summary-text" id="docSummary"></div>
+                <button class="btn btn-success" id="analyzeAllBtn">Generate All Responses</button>
+                <div class="loading" id="allLoading">
+                    <div class="spinner"></div>
+                    <p>Generating responses for all requests...</p>
+                </div>
+            </div>
+
+            <div id="requestsList"></div>
+        </div>
+    </main>
+
+    <script>
+        const API = '/api/v1';
+        let currentDocId = null;
+
+        // Upload zone
+        const zone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        zone.addEventListener('click', () => fileInput.click());
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) handleUpload(fileInput.files[0]);
+        });
+
+        async function handleUpload(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showStatus('Please upload a PDF file.', 'error');
+                return;
+            }
+            const form = new FormData();
+            form.append('file', file);
+
+            document.getElementById('uploadLoading').classList.add('active');
+            clearStatus();
+
+            try {
+                const res = await fetch(`${API}/upload`, { method: 'POST', body: form });
+                if (!res.ok) throw new Error((await res.json()).detail || 'Upload failed');
+                const data = await res.json();
+                currentDocId = data.document_id;
+                renderResults(data);
+            } catch (err) {
+                showStatus(err.message, 'error');
+            } finally {
+                document.getElementById('uploadLoading').classList.remove('active');
+            }
+        }
+
+        function renderResults(data) {
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('docType').textContent = data.document_type.replace(/_/g, ' ');
+            document.getElementById('reqCount').textContent = `${data.num_requests} requests`;
+            document.getElementById('docSummary').textContent = data.summary;
+
+            const list = document.getElementById('requestsList');
+            list.innerHTML = data.requests.map(r => `
+                <div class="request-item" id="req-${r.number}">
+                    <div class="number">Request #${r.number}</div>
+                    <div>${r.text}</div>
+                    <div id="resp-${r.number}"></div>
+                </div>
+            `).join('');
+        }
+
+        // Analyze all
+        document.getElementById('analyzeAllBtn').addEventListener('click', async () => {
+            if (!currentDocId) return;
+            document.getElementById('allLoading').classList.add('active');
+            try {
+                const res = await fetch(`${API}/analyze/${currentDocId}`, { method: 'POST' });
+                if (!res.ok) throw new Error('Analysis failed');
+                const data = await res.json();
+                data.results.forEach(r => {
+                    const el = document.getElementById(`resp-${r.request_number}`);
+                    if (el) el.innerHTML = `<div class="response-box">${r.draft_response}</div>`;
+                });
+                showStatus('All responses generated successfully.', 'success');
+            } catch (err) {
+                showStatus(err.message, 'error');
+            } finally {
+                document.getElementById('allLoading').classList.remove('active');
+            }
+        });
+
+        // Single request analysis
+        document.getElementById('analyzeBtn').addEventListener('click', async () => {
+            const text = document.getElementById('singleRequest').value.trim();
+            if (!text) { showStatus('Enter a request to analyze.', 'error'); return; }
+
+            document.getElementById('singleLoading').classList.add('active');
+            clearStatus();
+            try {
+                const res = await fetch(`${API}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        request_text: text,
+                        context: document.getElementById('singleContext').value.trim(),
+                    }),
+                });
+                if (!res.ok) throw new Error('Analysis failed');
+                const data = await res.json();
+                document.getElementById('singleResult').innerHTML =
+                    `<div class="response-box">${data.response}</div>`;
+            } catch (err) {
+                showStatus(err.message, 'error');
+            } finally {
+                document.getElementById('singleLoading').classList.remove('active');
+            }
+        });
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMsg');
+            el.textContent = msg;
+            el.className = `status-msg ${type}`;
+        }
+        function clearStatus() {
+            document.getElementById('statusMsg').className = 'status-msg';
+        }
+    </script>
+</body>
+</html>
