@@ -121,6 +121,58 @@ async def classify_request(request_text: str, model: str | None = None) -> dict:
     return json.loads(completion.choices[0].message.content)
 
 
+CHAT_SYSTEM_PROMPT = """You are a helpful litigation document assistant. You have been given a summary of a legal document. Answer the user's questions based on the document summary provided.
+
+RULES:
+- Answer questions directly and concisely based on the document content.
+- If the answer is not found in the provided summary, say so honestly.
+- Do not fabricate information that is not in the document.
+- Use professional but conversational tone.
+- If the user asks about specific details not covered in the summary, suggest they review the full document.
+"""
+
+
+async def chat_with_document(
+    question: str,
+    summary: str,
+    chat_history: list[dict] | None = None,
+    model: str | None = None,
+) -> str:
+    """Answer a user question based on the document summary.
+
+    Args:
+        question: The user's question.
+        summary: The document summary to use as context.
+        chat_history: Optional list of previous messages [{"role": ..., "content": ...}].
+        model: OpenAI model to use.
+
+    Returns:
+        The assistant's reply as a string.
+    """
+    client = get_client()
+    model = model or settings.openai_model
+
+    messages = [
+        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+        {"role": "user", "content": f"Here is the document summary:\n\n{summary}"},
+        {"role": "assistant", "content": "I've reviewed the document summary. Feel free to ask me any questions about it."},
+    ]
+
+    if chat_history:
+        messages.extend(chat_history)
+
+    messages.append({"role": "user", "content": question})
+
+    completion = await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=0.3,
+        max_tokens=1000,
+    )
+
+    return completion.choices[0].message.content
+
+
 async def summarize_document(full_text: str, model: str | None = None) -> str:
     """Generate a concise summary of a litigation document."""
     client = get_client()

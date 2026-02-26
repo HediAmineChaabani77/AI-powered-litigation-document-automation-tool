@@ -13,6 +13,7 @@ from app.config import settings
 from app.core.document_parser import parse_document
 from app.core.pdf_extractor import extract_full_text, extract_text
 from app.services.openai_client import (
+    chat_with_document,
     classify_request,
     generate_response,
     summarize_document,
@@ -182,3 +183,30 @@ async def get_pages(document_id: str, method: str = "pdfplumber"):
 
     pages = extract_text(str(pdf_path), method=method)
     return {"document_id": document_id, "method": method, "pages": pages}
+
+
+class ChatRequest(BaseModel):
+    question: str
+    chat_history: list[dict] = []
+
+
+@router.post("/chat/{document_id}")
+async def chat_document(document_id: str, body: ChatRequest):
+    """Chat with an uploaded document using its summary as context."""
+    pdf_path = UPLOAD_DIR / f"{document_id}.pdf"
+    if not pdf_path.is_file():
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    full_text = extract_full_text(str(pdf_path))
+
+    try:
+        summary = await summarize_document(full_text)
+        reply = await chat_with_document(
+            question=body.question,
+            summary=summary,
+            chat_history=body.chat_history,
+        )
+    except (AuthenticationError, APIConnectionError, RateLimitError) as exc:
+        _handle_openai_error(exc)
+
+    return {"document_id": document_id, "reply": reply}
