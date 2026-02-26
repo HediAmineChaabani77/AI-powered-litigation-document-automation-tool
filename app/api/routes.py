@@ -27,6 +27,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 class AnalyzeRequest(BaseModel):
     request_text: str
     context: str = ""
+    document_type: str = ""
     model: str | None = None
 
 
@@ -116,6 +117,7 @@ async def analyze_request(body: AnalyzeRequest):
         result = await generate_response(
             request_text=body.request_text,
             context=body.context,
+            document_type=body.document_type,
             model=body.model,
         )
     except (AuthenticationError, APIConnectionError, RateLimitError) as exc:
@@ -123,8 +125,12 @@ async def analyze_request(body: AnalyzeRequest):
     return AnalyzeResponse(**result)
 
 
+class AnalyzeAllRequest(BaseModel):
+    document_type: str = ""
+
+
 @router.post("/analyze/{document_id}")
-async def analyze_all_requests(document_id: str):
+async def analyze_all_requests(document_id: str, body: AnalyzeAllRequest | None = None):
     """Analyze all requests in a document and generate draft responses."""
     pdf_path = UPLOAD_DIR / f"{document_id}.pdf"
     if not pdf_path.is_file():
@@ -132,6 +138,8 @@ async def analyze_all_requests(document_id: str):
 
     full_text = extract_full_text(str(pdf_path))
     parsed = parse_document(full_text)
+
+    doc_type = (body.document_type if body and body.document_type else parsed.document_type)
 
     definitions_context = ""
     if parsed.definitions:
@@ -143,7 +151,7 @@ async def analyze_all_requests(document_id: str):
         tasks = [
             asyncio.gather(
                 classify_request(req.text),
-                generate_response(req.text, context=definitions_context),
+                generate_response(req.text, context=definitions_context, document_type=doc_type),
             )
             for req in parsed.requests
         ]

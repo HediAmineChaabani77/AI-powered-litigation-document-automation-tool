@@ -3,72 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Litigation AI Tool</title>
+    <title>LitigationAI Pro</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>Litigation AI Tool</h1>
-            <p>AI-powered document analysis and response generation</p>
-        </div>
-    </header>
-
-    <main class="container">
-        <div id="statusMsg" class="status-msg"></div>
-
-        <!-- Upload Section -->
-        <div class="card">
-            <h2>Upload Document</h2>
-            <div class="upload-zone" id="uploadZone">
-                <input type="file" id="fileInput" accept=".pdf">
-                <p><strong>Click or drag a PDF</strong> to upload a litigation document</p>
-                <p style="font-size:0.8rem; margin-top:0.5rem;">Supports interrogatories, RFPs, and RFAs</p>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M3 6v14a2 2 0 002 2h14a2 2 0 002-2V6M3 6l3-4h12l3 4M10 11h4"/></svg>
             </div>
-            <div class="loading" id="uploadLoading">
-                <div class="spinner"></div>
-                <p>Extracting and analyzing document...</p>
+            <div>
+                <div class="brand-name">LitigationAI</div>
+                <div class="brand-tag">Professional Suite</div>
             </div>
         </div>
 
-        <!-- Single Request Analysis -->
-        <div class="card">
-            <h2>Analyze a Single Request</h2>
-            <textarea id="singleRequest" placeholder="Paste a litigation request here..."></textarea>
-            <textarea id="singleContext" placeholder="Optional: additional context or definitions..." style="min-height:50px;"></textarea>
-            <button class="btn btn-primary" id="analyzeBtn">Analyze Request</button>
-            <div class="loading" id="singleLoading">
-                <div class="spinner"></div>
-                <p>Generating response...</p>
-            </div>
-            <div id="singleResult"></div>
-        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Workspace</div>
+            <a class="nav-item active" data-section="upload" href="#">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                Upload Document
+            </a>
+            <a class="nav-item" data-section="analyze" href="#">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Single Analysis
+            </a>
+            <a class="nav-item" data-section="results" href="#" id="navResults" style="display:none;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                Document Results
+            </a>
+        </nav>
 
-        <!-- Results Section -->
-        <div id="results">
-            <div class="card">
-                <h2>Document Analysis</h2>
-                <div style="margin-bottom:1rem;">
-                    <span class="badge badge-type" id="docType"></span>
-                    <span class="badge badge-count" id="reqCount"></span>
+        <div class="sidebar-footer">
+            <div class="sidebar-footer-text">Powered by GPT-4o</div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <button class="menu-toggle" id="menuToggle">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <h1 class="page-title" id="pageTitle">Upload Document</h1>
+            <div class="top-bar-actions">
+                <span class="status-indicator" id="apiStatus">
+                    <span class="status-dot"></span>
+                    Ready
+                </span>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <!-- Toast Notifications -->
+            <div id="toast" class="toast"></div>
+
+            <!-- Upload Section -->
+            <section class="section" id="sectionUpload">
+                <div class="section-header">
+                    <h2>Upload Litigation Document</h2>
+                    <p class="section-desc">Upload a PDF to automatically extract, parse, and generate draft responses to discovery requests.</p>
                 </div>
-                <div class="summary-text" id="docSummary"></div>
-                <button class="btn btn-success" id="analyzeAllBtn">Generate All Responses</button>
-                <div class="loading" id="allLoading">
-                    <div class="spinner"></div>
-                    <p>Generating responses for all requests...</p>
-                </div>
-            </div>
 
-            <div id="requestsList"></div>
+                <!-- Document Type Selector -->
+                <div class="card">
+                    <div class="card-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4a2 2 0 012-2h8.5L20 7.5V20a2 2 0 01-2 2H6a2 2 0 01-2-2v-3"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>Document Configuration</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Document Type</label>
+                        <div class="select-wrapper">
+                            <select id="docTypeSelect" class="form-select">
+                                <option value="">Auto-detect from content</option>
+                                <option value="interrogatories">Interrogatories</option>
+                                <option value="requests_for_production">Requests for Production (RFP)</option>
+                                <option value="requests_for_admission">Requests for Admission (RFA)</option>
+                            </select>
+                            <svg class="select-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <span class="form-hint">Select the document type or let the system auto-detect it from the content.</span>
+                    </div>
+                </div>
+
+                <!-- Upload Zone -->
+                <div class="card">
+                    <div class="upload-zone" id="uploadZone">
+                        <input type="file" id="fileInput" accept=".pdf">
+                        <div class="upload-icon">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </div>
+                        <div class="upload-text">
+                            <span class="upload-title">Click to upload or drag and drop</span>
+                            <span class="upload-subtitle">PDF files only (max 50MB)</span>
+                        </div>
+                        <div class="upload-formats">
+                            <span class="format-tag">Interrogatories</span>
+                            <span class="format-tag">RFPs</span>
+                            <span class="format-tag">RFAs</span>
+                        </div>
+                    </div>
+                    <div class="loading" id="uploadLoading">
+                        <div class="loading-content">
+                            <div class="spinner"></div>
+                            <div class="loading-text">
+                                <span class="loading-title">Analyzing Document</span>
+                                <span class="loading-desc">Extracting text, parsing requests, generating summary...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Single Analysis Section -->
+            <section class="section" id="sectionAnalyze" style="display:none;">
+                <div class="section-header">
+                    <h2>Analyze Single Request</h2>
+                    <p class="section-desc">Paste an individual litigation request to generate a professional draft response with objections.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        <span>Request Details</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Document Type</label>
+                        <div class="select-wrapper">
+                            <select id="singleDocType" class="form-select">
+                                <option value="">General Litigation Request</option>
+                                <option value="interrogatories">Interrogatory</option>
+                                <option value="requests_for_production">Request for Production (RFP)</option>
+                                <option value="requests_for_admission">Request for Admission (RFA)</option>
+                            </select>
+                            <svg class="select-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Request Text <span class="required">*</span></label>
+                        <textarea id="singleRequest" class="form-textarea" placeholder="e.g., Please produce all documents and communications related to the agreement dated January 15, 2024, between Plaintiff and Defendant..." rows="5"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Additional Context <span class="optional">(optional)</span></label>
+                        <textarea id="singleContext" class="form-textarea form-textarea-sm" placeholder="Case background, defined terms, or relevant instructions..." rows="3"></textarea>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn btn-primary" id="analyzeBtn">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            Generate Response
+                        </button>
+                    </div>
+
+                    <div class="loading" id="singleLoading">
+                        <div class="loading-content">
+                            <div class="spinner"></div>
+                            <div class="loading-text">
+                                <span class="loading-title">Generating Response</span>
+                                <span class="loading-desc">Analyzing request, identifying objections, drafting response...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="singleResult"></div>
+                </div>
+            </section>
+
+            <!-- Document Results Section -->
+            <section class="section" id="sectionResults" style="display:none;">
+                <div class="section-header">
+                    <h2>Document Analysis Results</h2>
+                    <p class="section-desc">Review extracted requests and generate AI-drafted responses.</p>
+                </div>
+
+                <!-- Document Overview Card -->
+                <div class="card card-highlight">
+                    <div class="doc-overview">
+                        <div class="doc-overview-header">
+                            <div class="doc-icon">
+                                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div>
+                                <h3 id="docTitle" class="doc-title">Document</h3>
+                                <div class="doc-meta">
+                                    <span class="badge badge-type" id="docType"></span>
+                                    <span class="badge badge-count" id="reqCount"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="doc-summary" id="docSummary"></div>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn btn-primary btn-lg" id="analyzeAllBtn">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            Generate All Responses
+                        </button>
+                    </div>
+
+                    <div class="loading" id="allLoading">
+                        <div class="loading-content">
+                            <div class="spinner"></div>
+                            <div class="loading-text">
+                                <span class="loading-title">Generating All Responses</span>
+                                <span class="loading-desc">Processing each request concurrently...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill"></div></div>
+                    </div>
+                </div>
+
+                <!-- Requests List -->
+                <div id="requestsList"></div>
+            </section>
         </div>
     </main>
 
     <script>
         const API = '/api/v1';
         let currentDocId = null;
+        let currentDocType = '';
 
-        // Upload zone
+        // --- Navigation ---
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = item.dataset.section;
+                switchSection(section);
+            });
+        });
+
+        function switchSection(name) {
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            const sectionMap = { upload: 'sectionUpload', analyze: 'sectionAnalyze', results: 'sectionResults' };
+            const titleMap = { upload: 'Upload Document', analyze: 'Single Analysis', results: 'Document Results' };
+
+            document.getElementById(sectionMap[name]).style.display = 'block';
+            document.querySelector(`.nav-item[data-section="${name}"]`).classList.add('active');
+            document.getElementById('pageTitle').textContent = titleMap[name];
+        }
+
+        // --- Mobile Menu ---
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        // --- Upload ---
         const zone = document.getElementById('uploadZone');
         const fileInput = document.getElementById('fileInput');
 
@@ -86,71 +274,96 @@
 
         async function handleUpload(file) {
             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                showStatus('Please upload a PDF file.', 'error');
+                showToast('Please upload a PDF file.', 'error');
                 return;
             }
             const form = new FormData();
             form.append('file', file);
 
             document.getElementById('uploadLoading').classList.add('active');
-            clearStatus();
+            zone.style.display = 'none';
 
             try {
                 const res = await fetch(`${API}/upload`, { method: 'POST', body: form });
                 if (!res.ok) throw new Error((await res.json()).detail || 'Upload failed');
                 const data = await res.json();
                 currentDocId = data.document_id;
+
+                // Use user-selected type if provided, otherwise use detected
+                const selectedType = document.getElementById('docTypeSelect').value;
+                currentDocType = selectedType || data.document_type;
+
                 renderResults(data);
+                document.getElementById('navResults').style.display = 'flex';
+                switchSection('results');
+                showToast('Document analyzed successfully', 'success');
             } catch (err) {
-                showStatus(err.message, 'error');
+                showToast(err.message, 'error');
+                zone.style.display = '';
             } finally {
                 document.getElementById('uploadLoading').classList.remove('active');
             }
         }
 
         function renderResults(data) {
-            document.getElementById('results').style.display = 'block';
-            document.getElementById('docType').textContent = data.document_type.replace(/_/g, ' ');
-            document.getElementById('reqCount').textContent = `${data.num_requests} requests`;
+            const displayType = currentDocType.replace(/_/g, ' ');
+            document.getElementById('docTitle').textContent = data.title || 'Uploaded Document';
+            document.getElementById('docType').textContent = displayType;
+            document.getElementById('reqCount').textContent = `${data.num_requests} request${data.num_requests !== 1 ? 's' : ''}`;
             document.getElementById('docSummary').textContent = data.summary;
 
             const list = document.getElementById('requestsList');
             list.innerHTML = data.requests.map(r => `
-                <div class="request-item" id="req-${r.number}">
-                    <div class="number">Request #${r.number}</div>
-                    <div>${r.text}</div>
+                <div class="card request-card" id="req-${r.number}">
+                    <div class="request-header">
+                        <span class="request-number">Request #${r.number}</span>
+                        ${r.definitions_referenced && r.definitions_referenced.length
+                            ? `<span class="badge badge-def">${r.definitions_referenced.length} defined term${r.definitions_referenced.length > 1 ? 's' : ''}</span>`
+                            : ''}
+                    </div>
+                    <div class="request-text">${escapeHtml(r.text)}</div>
                     <div id="resp-${r.number}"></div>
                 </div>
             `).join('');
         }
 
-        // Analyze all
+        // --- Analyze All ---
         document.getElementById('analyzeAllBtn').addEventListener('click', async () => {
             if (!currentDocId) return;
+            const btn = document.getElementById('analyzeAllBtn');
+            btn.disabled = true;
             document.getElementById('allLoading').classList.add('active');
+
             try {
-                const res = await fetch(`${API}/analyze/${currentDocId}`, { method: 'POST' });
+                const res = await fetch(`${API}/analyze/${currentDocId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ document_type: currentDocType }),
+                });
                 if (!res.ok) throw new Error('Analysis failed');
                 const data = await res.json();
                 data.results.forEach(r => {
                     const el = document.getElementById(`resp-${r.request_number}`);
-                    if (el) el.innerHTML = `<div class="response-box">${r.draft_response}</div>`;
+                    if (el) el.innerHTML = formatResponse(r.draft_response, r.classification);
                 });
-                showStatus('All responses generated successfully.', 'success');
+                showToast('All responses generated successfully', 'success');
             } catch (err) {
-                showStatus(err.message, 'error');
+                showToast(err.message, 'error');
             } finally {
                 document.getElementById('allLoading').classList.remove('active');
+                btn.disabled = false;
             }
         });
 
-        // Single request analysis
+        // --- Single Analysis ---
         document.getElementById('analyzeBtn').addEventListener('click', async () => {
             const text = document.getElementById('singleRequest').value.trim();
-            if (!text) { showStatus('Enter a request to analyze.', 'error'); return; }
+            if (!text) { showToast('Enter a request to analyze.', 'error'); return; }
 
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
             document.getElementById('singleLoading').classList.add('active');
-            clearStatus();
+
             try {
                 const res = await fetch(`${API}/analyze`, {
                     method: 'POST',
@@ -158,26 +371,85 @@
                     body: JSON.stringify({
                         request_text: text,
                         context: document.getElementById('singleContext').value.trim(),
+                        document_type: document.getElementById('singleDocType').value,
                     }),
                 });
                 if (!res.ok) throw new Error('Analysis failed');
                 const data = await res.json();
-                document.getElementById('singleResult').innerHTML =
-                    `<div class="response-box">${data.response}</div>`;
+                document.getElementById('singleResult').innerHTML = formatResponse(data.response);
             } catch (err) {
-                showStatus(err.message, 'error');
+                showToast(err.message, 'error');
             } finally {
                 document.getElementById('singleLoading').classList.remove('active');
+                btn.disabled = false;
             }
         });
 
-        function showStatus(msg, type) {
-            const el = document.getElementById('statusMsg');
-            el.textContent = msg;
-            el.className = `status-msg ${type}`;
+        // --- Formatting ---
+        function formatResponse(text, classification) {
+            let html = '<div class="response-container">';
+
+            if (classification) {
+                html += `<div class="response-meta">
+                    <span class="badge badge-category">${classification.category || ''}</span>
+                    <span class="badge badge-complexity badge-${classification.complexity || 'medium'}">${classification.complexity || ''} complexity</span>
+                </div>`;
+            }
+
+            // Parse sections
+            const sections = text.split(/\n(?=OBJECTIONS:|RESPONSE:|NOTES:)/);
+            sections.forEach(section => {
+                const trimmed = section.trim();
+                if (trimmed.startsWith('OBJECTIONS:')) {
+                    const content = trimmed.replace('OBJECTIONS:', '').trim();
+                    html += `<div class="response-section response-objections">
+                        <div class="response-section-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            Objections
+                        </div>
+                        <div class="response-section-content">${escapeHtml(content)}</div>
+                    </div>`;
+                } else if (trimmed.startsWith('RESPONSE:')) {
+                    const content = trimmed.replace('RESPONSE:', '').trim();
+                    html += `<div class="response-section response-answer">
+                        <div class="response-section-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Response
+                        </div>
+                        <div class="response-section-content">${escapeHtml(content)}</div>
+                    </div>`;
+                } else if (trimmed.startsWith('NOTES:')) {
+                    const content = trimmed.replace('NOTES:', '').trim();
+                    html += `<div class="response-section response-notes">
+                        <div class="response-section-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            Attorney Notes
+                        </div>
+                        <div class="response-section-content">${escapeHtml(content)}</div>
+                    </div>`;
+                } else if (trimmed) {
+                    html += `<div class="response-section response-answer">
+                        <div class="response-section-content">${escapeHtml(trimmed)}</div>
+                    </div>`;
+                }
+            });
+
+            html += '</div>';
+            return html;
         }
-        function clearStatus() {
-            document.getElementById('statusMsg').className = 'status-msg';
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // --- Toast Notifications ---
+        function showToast(msg, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast toast-${type} toast-show`;
+            setTimeout(() => toast.classList.remove('toast-show'), 4000);
         }
     </script>
 </body>

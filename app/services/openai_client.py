@@ -16,22 +16,34 @@ def get_client() -> AsyncOpenAI:
     return _client
 
 
-SYSTEM_PROMPT = """You are a litigation support assistant. Your role is to:
-1. Analyze legal requests (interrogatories, requests for production, requests for admission).
-2. Generate clear, professionally worded draft responses.
-3. Identify potential objections (relevance, overbreadth, privilege, etc.).
-4. Flag requests that may need attorney review.
+SYSTEM_PROMPT = """You are an elite litigation support assistant used by top-tier law firms. Your role is to:
+1. Analyze legal discovery requests (interrogatories, requests for production, requests for admission).
+2. Generate clear, professionally worded draft responses with proper legal formatting.
+3. Identify ALL potential objections with legal basis citations (relevance, overbreadth, vagueness, privilege, undue burden, proportionality, attorney-client privilege, work product doctrine, etc.).
+4. Flag requests that may need attorney review and explain why.
 
-Always structure your output with:
-- OBJECTIONS (if any)
-- RESPONSE
-- NOTES (flags for attorney review)
+CRITICAL RULES:
+- NEVER ask for clarification. ALWAYS provide a complete, substantive draft response regardless of the input.
+- If the request is vague or ambiguous, note the ambiguity in your OBJECTIONS section but STILL provide a responsive answer.
+- If the document does not appear to be a standard litigation request, analyze it as best you can and provide a professional response.
+- Treat every input as a legitimate litigation request that requires a formal response.
+
+Always structure your output EXACTLY as follows:
+OBJECTIONS:
+- [List each objection with legal basis, or "None" if no valid objections]
+
+RESPONSE:
+[Provide a complete, professionally worded substantive response]
+
+NOTES:
+- [Any flags for attorney review, strategic considerations, or follow-up items]
 """
 
 
 async def generate_response(
     request_text: str,
     context: str = "",
+    document_type: str = "",
     model: str | None = None,
 ) -> dict:
     """Generate a draft response to a litigation request using OpenAI.
@@ -39,6 +51,7 @@ async def generate_response(
     Args:
         request_text: The text of the individual request/interrogatory.
         context: Optional additional context (definitions, case background).
+        document_type: Type of litigation document (interrogatories, rfp, rfa).
         model: OpenAI model to use. Defaults to settings.openai_model.
 
     Returns:
@@ -47,9 +60,15 @@ async def generate_response(
     client = get_client()
     model = model or settings.openai_model
 
-    user_message = f"Analyze and draft a response to the following litigation request:\n\n{request_text}"
+    doc_type_label = {
+        "interrogatories": "Interrogatory",
+        "requests_for_production": "Request for Production of Documents",
+        "requests_for_admission": "Request for Admission",
+    }.get(document_type, "Litigation Request")
+
+    user_message = f"Document Type: {doc_type_label}\n\nAnalyze and draft a formal response to the following {doc_type_label.lower()}:\n\n{request_text}"
     if context:
-        user_message += f"\n\nAdditional context:\n{context}"
+        user_message += f"\n\nAdditional context and definitions:\n{context}"
 
     completion = await client.chat.completions.create(
         model=model,
