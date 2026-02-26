@@ -1,16 +1,18 @@
 """OpenAI API integration for generating litigation responses."""
 
-from openai import OpenAI
+import json
+
+from openai import AsyncOpenAI, AuthenticationError, APIConnectionError, RateLimitError
 
 from app.config import settings
 
-_client: OpenAI | None = None
+_client: AsyncOpenAI | None = None
 
 
-def get_client() -> OpenAI:
+def get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = OpenAI(api_key=settings.openai_api_key.strip())
+        _client = AsyncOpenAI(api_key=settings.openai_api_key.strip())
     return _client
 
 
@@ -27,7 +29,7 @@ Always structure your output with:
 """
 
 
-def generate_response(
+async def generate_response(
     request_text: str,
     context: str = "",
     model: str | None = None,
@@ -49,7 +51,7 @@ def generate_response(
     if context:
         user_message += f"\n\nAdditional context:\n{context}"
 
-    completion = client.chat.completions.create(
+    completion = await client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -70,7 +72,7 @@ def generate_response(
     }
 
 
-def classify_request(request_text: str, model: str | None = None) -> dict:
+async def classify_request(request_text: str, model: str | None = None) -> dict:
     """Classify a litigation request by category and complexity.
 
     Returns a dict with 'category', 'complexity', and 'suggested_objections'.
@@ -78,7 +80,7 @@ def classify_request(request_text: str, model: str | None = None) -> dict:
     client = get_client()
     model = model or settings.openai_model
 
-    completion = client.chat.completions.create(
+    completion = await client.chat.completions.create(
         model=model,
         messages=[
             {
@@ -97,24 +99,22 @@ def classify_request(request_text: str, model: str | None = None) -> dict:
         response_format={"type": "json_object"},
     )
 
-    import json
-
     return json.loads(completion.choices[0].message.content)
 
 
-def summarize_document(full_text: str, model: str | None = None) -> str:
+async def summarize_document(full_text: str, model: str | None = None) -> str:
     """Generate a concise summary of a litigation document."""
     client = get_client()
     model = model or settings.openai_model
 
-    completion = client.chat.completions.create(
+    completion = await client.chat.completions.create(
         model=model,
         messages=[
             {
                 "role": "system",
                 "content": "Summarize the following litigation document concisely, highlighting the key requests and any notable definitions or instructions.",
             },
-            {"role": "user", "content": full_text[:12000]},  # Truncate to stay within limits
+            {"role": "user", "content": full_text[:12000]},
         ],
         temperature=0.2,
         max_tokens=1000,

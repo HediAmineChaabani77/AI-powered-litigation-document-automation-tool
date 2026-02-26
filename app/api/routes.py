@@ -1,10 +1,12 @@
 """REST API routes for the litigation AI tool."""
 
+import asyncio
 import shutil
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from openai import AuthenticationError, APIConnectionError, RateLimitError
 from pydantic import BaseModel
 
 from app.config import settings
@@ -43,6 +45,17 @@ class DocumentSummary(BaseModel):
     requests: list[dict]
 
 
+def _handle_openai_error(exc: Exception):
+    """Convert OpenAI SDK exceptions to appropriate HTTP errors."""
+    if isinstance(exc, AuthenticationError):
+        raise HTTPException(status_code=502, detail="OpenAI API key is invalid. Check your OPENAI_API_KEY environment variable.")
+    if isinstance(exc, RateLimitError):
+        raise HTTPException(status_code=429, detail="OpenAI rate limit reached. Please try again shortly.")
+    if isinstance(exc, APIConnectionError):
+        raise HTTPException(status_code=502, detail="Could not connect to OpenAI API.")
+    raise HTTPException(status_code=500, detail=f"OpenAI error: {exc}")
+
+
 @router.post("/upload", response_model=DocumentSummary)
 async def upload_document(file: UploadFile = File(...)):
     """Upload a PDF litigation document for analysis."""
@@ -57,7 +70,11 @@ async def upload_document(file: UploadFile = File(...)):
 
     full_text = extract_full_text(str(save_path))
     parsed = parse_document(full_text, title=file.filename)
-    summary = summarize_document(full_text)
+
+    try:
+        summary = await summarize_document(full_text)
+    except (AuthenticationError, APIConnectionError, RateLimitError) as exc:
+        _handle_openai_error(exc)
 
     return DocumentSummary(
         document_id=doc_id,
@@ -95,11 +112,14 @@ async def get_requests(document_id: str):
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_request(body: AnalyzeRequest):
     """Generate an AI-drafted response to a single litigation request."""
-    result = generate_response(
-        request_text=body.request_text,
-        context=body.context,
-        model=body.model,
-    )
+    try:
+        result = await generate_response(
+            request_text=body.request_text,
+            context=body.context,
+            model=body.model,
+        )
+    except (AuthenticationError, APIConnectionError, RateLimitError) as exc:
+        _handle_openai_error(exc)
     return AnalyzeResponse(**result)
 
 
@@ -119,10 +139,20 @@ async def analyze_all_requests(document_id: str):
             f'- "{term}": {defn}' for term, defn in parsed.definitions.items()
         )
 
+    try:
+        tasks = [
+            asyncio.gather(
+                classify_request(req.text),
+                generate_response(req.text, context=definitions_context),
+            )
+            for req in parsed.requests
+        ]
+        pairs = await asyncio.gather(*tasks)
+    except (AuthenticationError, APIConnectionError, RateLimitError) as exc:
+        _handle_openai_error(exc)
+
     results = []
-    for req in parsed.requests:
-        classification = classify_request(req.text)
-        response = generate_response(req.text, context=definitions_context)
+    for req, (classification, response) in zip(parsed.requests, pairs):
         results.append({
             "request_number": req.number,
             "request_text": req.text,
